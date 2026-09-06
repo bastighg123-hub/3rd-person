@@ -1,6 +1,7 @@
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
 
 local player = Players.LocalPlayer
 
@@ -11,17 +12,14 @@ gui.IgnoreGuiInset = true
 gui.Parent = player:WaitForChild("PlayerGui")
 
 local button = Instance.new("TextButton")
-button.Name = "CameraButton"
 button.Size = UDim2.fromOffset(170, 60)
 button.Position = UDim2.new(1, -190, 0.75, 0)
-
 button.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
 button.BackgroundTransparency = 0.1
-button.Text = "FIRST PERSON"
-button.TextColor3 = Color3.fromRGB(255, 255, 255)
+button.TextColor3 = Color3.new(1, 1, 1)
 button.TextSize = 17
 button.Font = Enum.Font.GothamBold
-button.AutoButtonColor = true
+button.Text = "FIRST PERSON"
 button.Active = true
 button.Parent = gui
 
@@ -36,19 +34,28 @@ stroke.Parent = button
 
 local firstPerson = true
 
--- CAMERA
-
-local function updateCamera()
+local function getHumanoid()
 	local character = player.Character
-	if not character then return end
+	if not character then
+		return nil
+	end
 
-	local humanoid = character:FindFirstChildOfClass("Humanoid")
-	if not humanoid then return end
+	return character:FindFirstChildOfClass("Humanoid")
+end
+
+local function setCamera()
+	local humanoid = getHumanoid()
+	if not humanoid then
+		return
+	end
 
 	local camera = workspace.CurrentCamera
+	if not camera then
+		return
+	end
 
-	camera.CameraType = Enum.CameraType.Custom
 	camera.CameraSubject = humanoid
+	camera.CameraType = Enum.CameraType.Custom
 
 	if firstPerson then
 		player.CameraMode = Enum.CameraMode.LockFirstPerson
@@ -59,7 +66,17 @@ local function updateCamera()
 	end
 end
 
--- TOUCH DRAG
+button.Activated:Connect(function()
+	firstPerson = not firstPerson
+	setCamera()
+end)
+
+player.CharacterAdded:Connect(function()
+	task.wait(1)
+	setCamera()
+end)
+
+-- Mobile Touch Drag
 
 local dragging = false
 local dragStart
@@ -91,7 +108,9 @@ button.InputChanged:Connect(function(input)
 end)
 
 UserInputService.InputChanged:Connect(function(input)
-	if not dragging then return end
+	if not dragging then
+		return
+	end
 
 	if input == dragInput
 		or input.UserInputType == Enum.UserInputType.MouseMovement then
@@ -119,18 +138,26 @@ UserInputService.InputEnded:Connect(function(input)
 	end
 end)
 
--- BUTTON
+RunService:BindToRenderStep(
+	"CameraToggle",
+	Enum.RenderPriority.Camera.Value + 1,
+	function()
+		local humanoid = getHumanoid()
+		local camera = workspace.CurrentCamera
 
-button.Activated:Connect(function()
-	if moved then return end
+		if not humanoid or not camera then
+			return
+		end
 
-	firstPerson = not firstPerson
-	updateCamera()
-end)
+		camera.CameraSubject = humanoid
+		camera.CameraType = Enum.CameraType.Custom
 
-player.CharacterAdded:Connect(function()
-	task.wait(0.5)
-	updateCamera()
-end)
+		if firstPerson then
+			player.CameraMode = Enum.CameraMode.LockFirstPerson
+		else
+			player.CameraMode = Enum.CameraMode.Classic
+		end
+	end
+)
 
-updateCamera()
+setCamera()
